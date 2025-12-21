@@ -1,0 +1,11 @@
+services:
+  delegator:
+    image: local/keycloak-ciba-delegator:latest
+    build: .
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Tokyo
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - 3000:3000
