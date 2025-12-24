@@ -33,7 +33,9 @@
 
     <v-row>
       <v-col>
-        <v-btn color="primary" @click="save()">save</v-btn>
+        <v-btn color="primary" @click="handleSave" :disabled="loading">
+          save
+        </v-btn>
       </v-col>
     </v-row>
   </v-container>
@@ -41,40 +43,15 @@
 
 <script lang="ts" setup>
 import { type Ref, ref, onMounted } from "vue";
+import { useSettings } from "@/composables/useSettings";
 
-interface Settings {
-  keycloak: {
-    base_url: string;
-    realm: string;
-  };
-}
+const { settings, loading, loadSettings, saveSettings } = useSettings();
 
-const settings: Ref<Settings> = ref<Settings>({
-  keycloak: {
-    base_url: "",
-    realm: "",
-  },
-});
-
-const save = async () => {
-  fetch((import.meta.env.VITE_API_BASE_URL || "") + "/api/settings", {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(settings.value),
-  })
-    .then((resp) => resp.json())
-    .then((resp) => {
-      settings.value = resp;
-    });
+const handleSave = async () => {
+  await saveSettings();
 };
 
 onMounted(() => {
-  fetch((import.meta.env.VITE_API_BASE_URL || "") + "/api/settings")
-    .then((resp) => resp.json())
-    .then((resp) => {
-      settings.value = resp;
-    });
+  loadSettings();
 });
 </script>

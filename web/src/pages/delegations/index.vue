@@ -13,9 +13,14 @@
           @click="deleteSelected()"
           >delete</v-btn
         >
-        <v-btn color="primary" prepend-icon="mdi-reload" @click="reload"
-          >reload</v-btn
+        <v-btn
+          color="primary"
+          prepend-icon="mdi-reload"
+          @click="reload"
+          :disabled="loading"
         >
+          reload
+        </v-btn>
       </v-col>
     </v-row>
 
@@ -31,7 +36,7 @@
                   density="compact"
                   hide-details
                   :indeterminate="indeterminate"
-                  :disabled="items.length == 0"
+                  :disabled="delegations.length == 0"
                 ></v-checkbox>
               </th>
               <th style="width: 80px">ID</th>
@@ -48,7 +53,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in items" :key="item.id">
+            <tr v-for="item in delegations" :key="item.id">
               <th>
                 <v-checkbox
                   v-model="checks[item.id]"
@@ -207,7 +212,7 @@
       </v-col>
     </v-row>
 
-    <v-row v-if="items.length == 0">
+    <v-row v-if="delegations.length == 0">
       <v-col class="text-center">
         <div>No data found</div>
       </v-col>
@@ -217,21 +222,17 @@
 
 <script lang="ts" setup>
 import { type Ref, ref, watch, onMounted } from "vue";
+import { useDelegations } from "@/composables/useDelegations";
 
-interface Delegation {
-  id: string;
-  status: string;
-  acr_values: string;
-  binding_message: string;
-  consent_required: boolean;
-  login_hint: string;
-  scope: string;
-  auth_token: string;
-  created_at: string;
-  updated_at: string;
-}
-
-const items: Ref<Delegation[]> = ref([]);
+const {
+  delegations,
+  loading,
+  listDelegations,
+  approveDelegationById,
+  cancelDelegationById,
+  unauthorizeDelegationById,
+  deleteDelegationById,
+} = useDelegations();
 
 const bulkcheck: Ref<boolean> = ref(false);
 const indeterminate: Ref<boolean> = ref(false);
@@ -249,13 +250,13 @@ watch(bulkcheck, async (newValue, oldValue) => {
 });
 
 const checkAll = () => {
-  for (let item of items.value) {
+  for (let item of delegations.value) {
     checks.value[item.id] = true;
   }
 };
 
 const uncheckAll = () => {
-  for (let item of items.value) {
+  for (let item of delegations.value) {
     checks.value[item.id] = false;
   }
 };
@@ -295,81 +296,42 @@ const decode64 = (b64: string | undefined): string => {
 };
 
 const reload = async () => {
-  fetch((import.meta.env.VITE_API_BASE_URL || "") + "/api/delegations")
-    .then((resp) => resp.json())
-    .then((resp) => {
-      checks.value = {};
-      for (let item of resp) {
-        checks.value[item.id] = false;
-      }
-      bulkcheck.value = false;
-      items.value = resp;
-    });
+  checks.value = {};
+  bulkcheck.value = false;
+
+  await listDelegations();
+  for (let item of delegations.value) {
+    checks.value[item.id] = false;
+  }
 };
 
 const approveById = async (id: string) => {
-  fetch(
-    (import.meta.env.VITE_API_BASE_URL || "") +
-      `/api/delegations/${id}/approve`,
-    {
-      method: "PUT",
-    },
-  ).then((resp) => {
-    if (resp.ok) {
-      reload();
-    }
-  });
+  await approveDelegationById(id);
+  await reload();
 };
 
 const cancelById = async (id: string) => {
-  fetch(
-    (import.meta.env.VITE_API_BASE_URL || "") + `/api/delegations/${id}/cancel`,
-    {
-      method: "PUT",
-    },
-  ).then((resp) => {
-    if (resp.ok) {
-      reload();
-    }
-  });
+  await cancelDelegationById(id);
+  await reload();
 };
 
 const unauthorizeById = async (id: string) => {
-  fetch(
-    (import.meta.env.VITE_API_BASE_URL || "") +
-      `/api/delegations/${id}/unauthorize`,
-    {
-      method: "PUT",
-    },
-  ).then((resp) => {
-    if (resp.ok) {
-      reload();
-    }
-  });
+  await unauthorizeDelegationById(id);
+  await reload();
 };
 
 const deleteById = async (id: string) => {
-  fetch((import.meta.env.VITE_API_BASE_URL || "") + `/api/delegations/${id}`, {
-    method: "DELETE",
-  }).then((resp) => {
-    if (resp.ok) {
-      reload();
-    }
-  });
+  await deleteDelegationById(id);
+  await reload();
 };
 
 const deleteSelected = async () => {
   for (let id of Object.keys(checks.value)) {
     if (checks.value[id] == true) {
-      await fetch(
-        (import.meta.env.VITE_API_BASE_URL || "") + `/api/delegations/${id}`,
-        {
-          method: "DELETE",
-        },
-      );
+      await deleteDelegationById(id);
     }
   }
-  reload();
+  await reload();
 };
 
 onMounted(async () => {
