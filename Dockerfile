@@ -4,7 +4,7 @@ WORKDIR /work
 RUN npm install -g pnpm
 RUN make web/dist
 
-FROM golang:1.25 AS gobuild
+FROM golang:1.26 AS gobuild
 COPY --from=nodebuild /work /go/src/delegator
 WORKDIR /go/src/delegator
 RUN make
